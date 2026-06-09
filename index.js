@@ -11,33 +11,41 @@ export default {
       });
     }
 
-    // 2. TỰ ĐỘNG QUÉT VÔ HẠN: Lấy toàn bộ keys trong biến môi trường
+    // 2. Tự động quét toàn bộ API Keys dạng OPENROUTER_KEY_X trong Settings
     const apiKeys = [];
-    
-    // Duyệt qua tất cả các key đang có trong Settings của Worker
     for (const key in env) {
       if (key.startsWith("OPENROUTER_KEY_") && env[key] && env[key].trim() !== "") {
         apiKeys.push(env[key].trim());
       }
     }
 
-    // Kiểm tra nếu không tìm thấy API Key nào
     if (apiKeys.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Không tìm thấy API Key nào dạng OPENROUTER_KEY_X trong Settings!" }), 
+        JSON.stringify({ error: "Chưa cấu hình API Key nào dạng OPENROUTER_KEY_X trong Settings!" }), 
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // 3. Chọn ngẫu nhiên một API Key để bypass limit
+    // 3. Chọn ngẫu nhiên một API Key để chia tải
     const randomIndex = Math.floor(Math.random() * apiKeys.length);
     const selectedApiKey = apiKeys[randomIndex];
 
-    // 4. Định tuyến URL đến OpenRouter
+    // 4. XỬ LÝ PATH THÔNG MINH (SỬA LỖI 404)
     const url = new URL(request.url);
-    const openRouterUrl = `https://openrouter.ai/api${url.pathname}${url.search}`;
+    let cleanPath = url.pathname;
+    
+    // Loại bỏ các tiền tố trùng lặp do App tự động thêm vào nếu có
+    if (cleanPath.startsWith("/api")) {
+      cleanPath = cleanPath.slice(4);
+    }
+    if (cleanPath.startsWith("/v1")) {
+      cleanPath = cleanPath.slice(3);
+    }
+    
+    // Ép buộc đưa về đúng format endpoint chuẩn của OpenRouter
+    const openRouterUrl = `https://openrouter.ai/api/v1${cleanPath}${url.search}`;
 
-    // 5. Ghi đè Header Authorization
+    // 5. Ghi đè Header Authorization bằng Key đã chọn
     const modifiedHeaders = new Headers(request.headers);
     modifiedHeaders.set("Authorization", `Bearer ${selectedApiKey}`);
     modifiedHeaders.set("Access-Control-Allow-Origin", "*");
@@ -50,7 +58,7 @@ export default {
     });
 
     try {
-      // 6. Gửi request và trả kết quả về
+      // 6. Tiến hành gọi OpenRouter
       const response = await fetch(modifiedRequest);
       
       const newResponseHeaders = new Headers(response.headers);
