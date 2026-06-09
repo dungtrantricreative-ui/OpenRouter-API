@@ -1,0 +1,3 @@
+name = "openrouter-api"
+main = "index.js" # Điền đúng tên file chứa code proxy của bạn (ví dụ: index.js hoặc worker.js)
+compatibility_date = "2026-06-09"
